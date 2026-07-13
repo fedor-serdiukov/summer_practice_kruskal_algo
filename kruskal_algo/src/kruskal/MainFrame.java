@@ -1,7 +1,12 @@
 package kruskal;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Главное окно
@@ -9,45 +14,45 @@ import java.awt.*;
 public class MainFrame extends JFrame {
 
     private final Graph graph = new Graph();
+    private final GraphPanel graphPanel = new GraphPanel(graph);
+    private final InfoPanel infoPanel = new InfoPanel();
+    private final LogPanel logPanel = new LogPanel();
+
+    private final JButton runButton = new JButton("Запустить алгоритм");
+    private final JButton nextButton = new JButton("Следующий шаг");
+    private final JButton prevButton = new JButton("Предыдущий шаг");
+    private final JToggleButton autoButton = new JToggleButton("Автовыполнение");
+    private final JButton resetButton = new JButton("Сброс");
+
+    private final JComboBox<String> modeBox = new JComboBox<>(new String[]{
+            "Режим: добавление вершин",
+            "Режим: добавление рёбер",
+            "Режим: удаление"
+    });
+
+    /** Шаги последнего запуска (используются для журнала и итога). */
+    private List<KruskalStep> steps;
 
     public MainFrame() {
-        super("Визуализатор алгоритма Краскала — прототип");
+        super("Визуализатор алгоритма Краскала — версия 1");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1150, 760);
         setMinimumSize(new Dimension(900, 560));
         setLocationRelativeTo(null);
 
-        buildDemoGraph();
-
-        GraphPanel graphPanel = new GraphPanel(graph);
-        InfoPanel infoPanel = new InfoPanel();
-        LogPanel logPanel = new LogPanel();
-        logPanel.setPlaceholder("Журнал работы алгоритма будет вестись начиная с 1-й версии.");
-
         add(buildToolBar(), BorderLayout.NORTH);
-        add(new LeftPanel(), BorderLayout.WEST);
+        add(new LeftPanel(graphPanel), BorderLayout.WEST);
         add(graphPanel, BorderLayout.CENTER);
         add(infoPanel, BorderLayout.EAST);
         add(logPanel, BorderLayout.SOUTH);
+
+        logPanel.setPlaceholder("Журнал пуст. Постройте граф и запустите алгоритм.");
+        graphPanel.setChangeListener(this::updateButtons);
+        updateButtons();
     }
 
-    /** Демонстрационный граф для показа отображения вершин, рёбер и весов. */
-    private void buildDemoGraph() {
-        Vertex v1 = graph.addVertex(300, 160);
-        Vertex v2 = graph.addVertex(560, 130);
-        Vertex v3 = graph.addVertex(700, 320);
-        Vertex v4 = graph.addVertex(480, 430);
-        Vertex v5 = graph.addVertex(250, 360);
-        graph.addEdge(v1, v2, 4);
-        graph.addEdge(v2, v3, 5);
-        graph.addEdge(v3, v4, 2);
-        graph.addEdge(v4, v5, 7);
-        graph.addEdge(v5, v1, 3);
-        graph.addEdge(v1, v4, 6);
-        graph.addEdge(v2, v4, 8);
-    }
+    //панель управления
 
-    /** Панель управления */
     private JToolBar buildToolBar() {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
@@ -57,41 +62,24 @@ public class MainFrame extends JFrame {
         JButton saveButton = new JButton("Сохранить");
         JButton clearButton = new JButton("Очистить");
 
-        newButton.addActionListener(e -> notYet("Создание графа", 1));
-        loadButton.addActionListener(e -> notYet("Загрузка из файла", 1));
-        saveButton.addActionListener(e -> notYet("Сохранение в файл", 1));
-        clearButton.addActionListener(e -> notYet("Очистка рабочего поля", 1));
+        newButton.addActionListener(e -> newGraph());
+        loadButton.addActionListener(e -> loadGraph());
+        saveButton.addActionListener(e -> saveGraph());
+        clearButton.addActionListener(e -> clearGraph());
+        runButton.addActionListener(e -> runAlgorithm());
+        resetButton.addActionListener(e -> resetVisualization());
 
-        JComboBox<String> modeBox = new JComboBox<>(new String[]{
-                "Режим: добавление вершин",
-                "Режим: добавление рёбер",
-                "Режим: перемещение",
-                "Режим: удаление"
-        });
-        modeBox.setToolTipText("Режимы редактирования будут реализованы в 1-й и 2-й версиях");
-        modeBox.setMaximumSize(modeBox.getPreferredSize());
-
-        JButton runButton = new JButton("Запустить алгоритм");
-        JButton prevButton = new JButton("Предыдущий шаг");
-        JButton nextButton = new JButton("Следующий шаг");
-        JToggleButton autoButton = new JToggleButton("Автовыполнение");
-        JButton resetButton = new JButton("Сброс");
-        JSlider speedSlider = new JSlider(100, 2000, 900);
-
-        runButton.setEnabled(false);
-        prevButton.setEnabled(false);
         nextButton.setEnabled(false);
+        prevButton.setEnabled(false);
         autoButton.setEnabled(false);
-        resetButton.setEnabled(false);
-        speedSlider.setEnabled(false);
-        runButton.setToolTipText("Алгоритм будет реализован в 1-й версии");
-        prevButton.setToolTipText("Пошаговое выполнение — во 2-й версии");
-        nextButton.setToolTipText("Пошаговое выполнение — во 2-й версии");
-        autoButton.setToolTipText("Автовыполнение — во 2-й версии");
-        resetButton.setToolTipText("Сброс визуализации — в 1-й версии");
-        speedSlider.setToolTipText("Регулятор скорости автовыполнения — во 2-й версии");
-        speedSlider.setMaximumSize(new Dimension(150, 28));
-        speedSlider.setPreferredSize(new Dimension(150, 28));
+        String soon = "Будет реализовано во 2-й версии";
+        nextButton.setToolTipText(soon);
+        prevButton.setToolTipText(soon);
+        autoButton.setToolTipText(soon);
+
+        modeBox.addActionListener(e -> graphPanel.setMode(
+                GraphPanel.Mode.values()[modeBox.getSelectedIndex()]));
+        modeBox.setMaximumSize(modeBox.getPreferredSize());
 
         bar.add(newButton);
         bar.add(loadButton);
@@ -104,15 +92,127 @@ public class MainFrame extends JFrame {
         bar.add(prevButton);
         bar.add(nextButton);
         bar.add(autoButton);
-        bar.add(new JLabel("  Задержка, мс: "));
-        bar.add(speedSlider);
         bar.add(resetButton);
         return bar;
     }
 
-    private void notYet(String what, int version) {
-        JOptionPane.showMessageDialog(this,
-                what + " будет реализовано в " + version + "-й версии.",
-                "Прототип", JOptionPane.INFORMATION_MESSAGE);
+    // работа с графом
+
+    private void newGraph() {
+        if (graph.getVertices().isEmpty() || confirm("Создать новый граф? Текущий граф будет удалён.")) {
+            resetVisualization();
+            graph.clear();
+            graphPanel.repaint();
+            updateButtons();
+        }
+    }
+
+    private void clearGraph() {
+        if (graph.getVertices().isEmpty() || confirm("Очистить рабочее поле?")) {
+            resetVisualization();
+            graph.clear();
+            graphPanel.repaint();
+            updateButtons();
+        }
+    }
+
+    private boolean confirm(String message) {
+        return JOptionPane.showConfirmDialog(this, message, "Подтверждение",
+                JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+    }
+
+    private void loadGraph() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Текстовые файлы (*.txt)", "txt"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        try {
+            resetVisualization();
+            graph.loadFromFile(chooser.getSelectedFile(),
+                    graphPanel.getWidth(), graphPanel.getHeight());
+            graphPanel.repaint();
+            updateButtons();
+        } catch (IOException | RuntimeException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Не удалось загрузить граф.\n" + ex.getMessage(),
+                    "Ошибка загрузки", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void saveGraph() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Текстовые файлы (*.txt)", "txt"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+        if (!file.getName().contains(".")) {
+            file = new File(file.getParentFile(), file.getName() + ".txt");
+        }
+        try {
+            graph.saveToFile(file);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Не удалось сохранить граф.\n" + ex.getMessage(),
+                    "Ошибка сохранения", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // выполнение алгоритма (сразу до результата)
+
+    private void runAlgorithm() {
+        if (graph.getVertices().size() < 2) {
+            JOptionPane.showMessageDialog(this,
+                    "Добавьте хотя бы две вершины.", "Ошибка", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (graph.getEdges().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "В графе нет рёбер.", "Ошибка", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        steps = KruskalAlgorithm.run(graph);
+        graphPanel.setAlgorithmMode(true);
+
+        // Журнал работы: рассмотренное ребро, вес и принятое решение
+        logPanel.clear();
+        logPanel.append("Алгоритм запущен: " + graph.getVertices().size() + " вершин, "
+                + graph.getEdges().size() + " рёбер. Рёбра отсортированы по возрастанию веса.");
+        List<Edge> accepted = new ArrayList<>();
+        for (KruskalStep s : steps) {
+            switch (s.getType()) {
+                case ACCEPT -> {
+                    accepted.add(s.getEdge());
+                    logPanel.append("Ребро " + s.getEdge()
+                            + ": добавлено в остов. Вес остова: " + s.getMstWeight() + ".");
+                }
+                case REJECT -> logPanel.append("Ребро " + s.getEdge()
+                        + ": отклонено — образует цикл.");
+                case FINISH -> logPanel.append(s.getDescription());
+                case CONSIDER -> { /* решение записывается строкой вердикта */ }
+            }
+        }
+
+        // Итог: зелёная подсветка остова и сводка на панели информации
+        graphPanel.showResult(accepted);
+        KruskalStep last = steps.get(steps.size() - 1);
+        infoPanel.showStep(last, steps.size(), steps.size());
+        JOptionPane.showMessageDialog(this, last.getDescription(),
+                "Результат", JOptionPane.INFORMATION_MESSAGE);
+        updateButtons();
+    }
+
+    private void resetVisualization() {
+        steps = null;
+        graphPanel.setAlgorithmMode(false);
+        infoPanel.showIdle();
+        logPanel.setPlaceholder("Журнал пуст. Постройте граф и запустите алгоритм.");
+        updateButtons();
+    }
+
+    /** Обновляет доступность кнопок в зависимости от состояния */
+    private void updateButtons() {
+        boolean running = steps != null;
+        modeBox.setEnabled(!running);
+        runButton.setEnabled(!running);
+        resetButton.setEnabled(running);
     }
 }
