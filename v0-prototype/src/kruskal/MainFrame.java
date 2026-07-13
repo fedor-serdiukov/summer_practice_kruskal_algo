@@ -4,7 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * Главное окно (прототип)
+ * Главное окно
  */
 public class MainFrame extends JFrame {
 
@@ -25,12 +25,13 @@ public class MainFrame extends JFrame {
         logPanel.setPlaceholder("Журнал работы алгоритма будет вестись начиная с 1-й версии.");
 
         add(buildToolBar(), BorderLayout.NORTH);
+        add(new LeftPanel(), BorderLayout.WEST);
         add(graphPanel, BorderLayout.CENTER);
         add(infoPanel, BorderLayout.EAST);
         add(logPanel, BorderLayout.SOUTH);
     }
 
-    /** Демонстрационный граф */
+    /** Демонстрационный граф для показа отображения вершин, рёбер и весов. */
     private void buildDemoGraph() {
         Vertex v1 = graph.addVertex(300, 160);
         Vertex v2 = graph.addVertex(560, 130);
