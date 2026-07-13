@@ -137,10 +137,10 @@ public class GraphPanel extends JPanel {
 
         } else if (selectedVertex != v) {
 
-            if (graph.findEdge(selectedVertex, v) != null) {
-                JOptionPane.showMessageDialog(this,
-                        "Ребро между вершинами " + selectedVertex + " и " + v + " уже существует.",
-                        "Ошибка", JOptionPane.WARNING_MESSAGE);
+            Edge existingEdge = graph.findEdge(selectedVertex, v);
+
+            if (existingEdge != null) {
+                changeWeight(existingEdge);
 
             } else {
                 Integer w = askWeight(
@@ -165,7 +165,7 @@ public class GraphPanel extends JPanel {
             selectedVertex = null;
 
         } else {
-            selectedVertex = null; // повторный щелчок по той же вершине — отмена
+            selectedVertex = null;
         }
     }
 
