@@ -28,7 +28,7 @@ public class LogPanel extends JPanel {
         area.setText("");
     }
 
-    /** Текст заглушка (используется, пока алгоритм не запускался) */
+    /** Текст-заглушка */
     public void setPlaceholder(String text) {
         area.setText(text + System.lineSeparator());
     }
